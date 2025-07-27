@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🌌 explorador de personajes rick y morty 🌌</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Orbitron', sans-serif;
+      background: url('imagenes/1.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #0ff;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 10px #0ff;
+      animation: glowPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes glowPulse {
+      0%, 100% { text-shadow: 0 0 15px #0ff, 0 0 30px #0ff; }
+      50% { text-shadow: 0 0 40px #00ffff, 0 0 80px #00ffff; }
+    }
+    .filtros {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    input, select {
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      width: 160px;
+      font-family: 'Orbitron', sans-serif;
+      color: #000;
+      font-size: 1rem;
+    }
+    button#buscar {
+      background: linear-gradient(90deg, #06b6d4, #3b82f6);
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding: 0.6rem 1.5rem;
+      border-radius: 0.5rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(72, 187, 255, 0.7); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(72, 187, 255, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(72, 187, 255, 0); }
+    }
+    #resultados {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .tarjeta {
+      background: rgba(0,0,0,0.8);
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 0 15px #00ffff88;
+      text-align: center;
+      padding-bottom: 1rem;
+      transition: transform 0.3s ease;
+    }
+    .tarjeta:hover {
+      transform: scale(1.05);
+    }
+    .tarjeta img {
+      width: 100%;
+      border-bottom: 2px solid #00ffff44;
+      animation: flotar 4s ease-in-out infinite;
+    }
+    @keyframes flotar {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .tarjeta h2 {
+      font-size: 1.3rem;
+      margin-top: 0.5rem;
+      color: #00ffff;
+    }
+    .tarjeta p {
+      font-size: 0.9rem;
+      color: #a0ffff;
+    }
+    .paginacion {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .paginacion button {
+      padding: 0.6rem 1.2rem;
+      font-weight: bold;
+      border-radius: 0.5rem;
+      background-color: #ef4444;
+      color: white;
+    }
+    .paginacion button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #mensaje {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: yellow;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌌 explorador de personajes rick y morty 🌌</h1>
+
+  <div class="filtros">
+    <input id="nombre" placeholder="nombre" />
+    <select id="estado">
+      <option value="">estado</option>
+      <option value="alive">vivo</option>
+      <option value="dead">muerto</option>
+      <option value="unknown">desconocido</option>
+    </select>
+    <select id="genero">
+      <option value="">género</option>
+      <option value="female">femenino</option>
+      <option value="male">masculino</option>
+      <option value="genderless">sin género</option>
+      <option value="unknown">desconocido</option>
+    </select>
+    <button id="buscar">buscar</button>
+  </div>
+
+  <div id="resultados"></div>
+
+  <div class="paginacion">
+    <button id="anterior">anterior</button>
+    <button id="siguiente">siguiente</button>
+  </div>
+
+  <div id="mensaje"></div>
+
+  <script>
+    const API = "https://rickandmortyapi.com/api/character"
+    let urlActual = API
+
+    const contenedor = document.getElementById("resultados")
+    const mensaje = document.getElementById("mensaje")
+    const btnAnterior = document.getElementById("anterior")
+    const btnSiguiente = document.getElementById("siguiente")
+    const nombre = document.getElementById("nombre")
+    const estado = document.getElementById("estado")
+    const genero = document.getElementById("genero")
+    const btnBuscar = document.getElementById("buscar")
+
+    function traducirEstado(e) {
+      if (e == "Alive") return "vivo"
+      if (e == "Dead") return "muerto"
+      return "desconocido"
+    }
+
+    function traducirEspecie(e) {
+      if (e == "Human") return "humano"
+      return "otro"
+    }
+
+    async function cargar(url) {
+      contenedor.innerHTML = ""
+      mensaje.textContent = "cargando..."
+      try {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error("no se encontraron resultados")
+        const data = await res.json()
+        mostrar(data.results)
+        paginacion(data.info)
+        mensaje.textContent = ""
+      } catch (e) {
+        mensaje.textContent = e.message
+        btnAnterior.disabled = true
+        btnSiguiente.disabled = true
+      }
+    }
+
+    function mostrar(lista) {
+      contenedor.innerHTML = lista.map(p => `
+        <div class="tarjeta">
+          <img src="${p.image}" alt="${p.name}">
+          <h2>${p.name}</h2>
+          <p><strong>estado:</strong> ${traducirEstado(p.status)}</p>
+          <p><strong>especie:</strong> ${traducirEspecie(p.species)}</p>
+        </div>
+      `).join("")
+    }
+
+    function paginacion(info) {
+      btnAnterior.disabled = !info.prev
+      btnSiguiente.disabled = !info.next
+
+      btnAnterior.onclick = () => {
+        if (info.prev) {
+          urlActual = info.prev
+          cargar(urlActual)
+        }
+      }
+
+      btnSiguiente.onclick = () => {
+        if (info.next) {
+          urlActual = info.next
+          cargar(urlActual)
+        }
+      }
+    }
+
+    btnBuscar.onclick = () => {
+      const filtros = []
+      if (nombre.value) filtros.push(`name=${nombre.value}`)
+      if (estado.value) filtros.push(`status=${estado.value}`)
+      if (genero.value) filtros.push(`gender=${genero.value}`)
+      urlActual = `${API}/?${filtros.join("&")}`
+      cargar(urlActual)
+    }
+
+    cargar(urlActual)
+  </script>
+</body>
+</html>
